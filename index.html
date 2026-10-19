@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>AeroSim Playlist Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#131e30;--line:#263750;--text:#eef5ff;--muted:#9eb0c8;--blue:#6ba7ff;--green:#65e6b0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172b48 0,#0b1220 58%);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:1000px;margin:auto;padding:24px 16px 56px}header{padding:18px 0 24px}h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:0 0 10px;letter-spacing:-1px}h2{font-size:19px;margin:0 0 14px}p{color:var(--muted);margin:7px 0}.tag{display:inline-block;border:1px solid #365276;border-radius:99px;padding:4px 10px;color:#b9d7ff;font-size:12px;margin-bottom:12px}.panel{background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--line);border-radius:16px;padding:18px;margin:14px 0;box-shadow:0 10px 32px #0002}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:180px}input[type=text],select{background:#0b1423;color:var(--text);border:1px solid #354862;border-radius:10px;padding:11px 12px;min-width:0;width:100%;font:inherit}button,.upload{cursor:pointer;border:1px solid #385273;border-radius:10px;padding:10px 13px;background:#1a2a40;color:var(--text);font:inherit;font-weight:650}button:hover,.upload:hover{border-color:var(--blue);background:#203754}button.primary{background:#377ee8;border-color:#377ee8;color:white}button.danger{color:#ffb8b8;border-color:#75424a}.upload{display:inline-flex;align-items:center;gap:8px}.upload input{max-width:230px;font-size:13px}.hint{font-size:13px}.muted{color:var(--muted)}.track{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #263750}.track:last-child{border-bottom:0}.track .name{flex:1;min-width:0;overflow-wrap:anywhere}.track small{display:block;color:var(--muted)}.track button{padding:7px 9px}.empty{padding:18px;text-align:center;border:1px dashed #3a4d67;border-radius:12px;color:var(--muted)}.status{margin-top:12px;color:var(--green);min-height:22px}.pill{font-size:12px;border:1px solid #385273;border-radius:99px;padding:3px 8px;color:#c5d9f5}.footer{font-size:12px;color:var(--muted);margin-top:20px}audio{width:100%;margin-top:12px;height:42px}@media(max-width:560px){.panel{padding:14px}.track{flex-wrap:wrap}.track .name{flex-basis:55%}.track .actions{display:flex;gap:5px}.upload{width:100%;justify-content:space-between}.upload input{max-width:65%}}
+</style>
+</head>
+<body><main>
+<header><span class="tag">AEROSIM FLIGHT · HERRAMIENTA LOCAL</span><h1>Playlist Studio</h1><p>Sube tus propios archivos de audio, organízalos en listas y exporta un paquete para guardarlo o usarlo en tu proyecto.</p></header>
+<section class="panel">
+<h2>1. Añadir música</h2>
+<p>Elige varios archivos MP3 o WAV desde tu Chromebook. Los archivos se procesan en tu navegador; no se suben automáticamente a internet.</p>
+<div class="row" style="margin-top:13px"><label class="upload">🎵 Seleccionar audios <input id="audioFiles" type="file" accept="audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" multiple></label><span id="audioCount" class="pill">0 canciones</span></div>
+<p class="hint">Recomendado: MP3, porque normalmente ocupa mucho menos espacio que WAV.</p>
+</section>
+<section class="panel">
+<h2>2. Crear y editar playlists</h2>
+<div class="row"><div class="grow"><label for="playlistName" class="hint muted">Nombre de la playlist</label><input id="playlistName" type="text" maxlength="80" placeholder="Ej. Música para volar"></div><button id="createPlaylist" class="primary">＋ Crear playlist</button></div>
+<div class="row" style="margin-top:14px"><div class="grow"><label for="playlistSelect" class="hint muted">Playlist seleccionada</label><select id="playlistSelect"><option value="">Crea una playlist primero</option></select></div><button id="renamePlaylist">Renombrar</button><button id="deletePlaylist" class="danger">Eliminar lista</button></div>
+<div id="library" style="margin-top:18px"><div class="empty">Todavía no has añadido archivos de audio.</div></div>
+</section>
+<section class="panel">
+<h2>3. Escuchar y exportar</h2>
+<div id="nowPlaying" class="muted hint">Selecciona una canción de la biblioteca para escucharla.</div><audio id="player" controls preload="metadata"></audio>
+<div class="row" style="margin-top:15px"><button id="exportZip" class="primary">⬇ Exportar playlist + audios (.zip)</button><button id="exportJson">Exportar solo JSON</button><label class="upload">Importar JSON <input id="importJson" type="file" accept=".json,application/json"></label></div>
+<p class="hint">El ZIP incluye el JSON y los archivos de audio dentro de una carpeta <code>audio/</code>. El JSON solo, por sí mismo, no contiene la música. El ZIP está pensado como paquete de exportación; para usarlo en AeroSim, habrá que alojar sus audios en URLs públicas HTTPS o adaptar AeroSim para leer el paquete.</p>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+</section>
+<p class="footer">Los cambios se mantienen en esta pestaña mientras está abierta. Exporta tu ZIP para conservar una copia. Esta página no distribuye música: usa archivos que tengas derecho a utilizar.</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+let tracks=[],playlists=[],selectedPlaylist='',nextId=1,activeTrack='';
+const safeName=s=>(s||'audio').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/\s+/g,' ').trim().slice(0,100)||'audio';
+function say(msg){$('status').textContent=msg}
+function current(){return playlists.find(p=>p.id===selectedPlaylist)||null}
+function trackById(id){return tracks.find(t=>t.id===id)}
+function fmt(n){if(!Number.isFinite(n))return '';if(n<1024*1024)return Math.max(1,Math.round(n/1024))+' KB';return (n/1024/1024).toFixed(1)+' MB'}
+function render(){
+ $('audioCount').textContent=tracks.length+' canción'+(tracks.length===1?'':'es');
+ const sel=$('playlistSelect');sel.innerHTML='';
+ if(!playlists.length){sel.add(new Option('Crea una playlist primero',''));selectedPlaylist='';}
+ else{for(const p of playlists)sel.add(new Option(p.name+' ('+p.trackIds.length+')',p.id));if(!playlists.some(p=>p.id===selectedPlaylist))selectedPlaylist=playlists[0].id;sel.value=selectedPlaylist;}
+ const p=current();const lib=$('library');lib.innerHTML='';
+ if(!tracks.length){lib.innerHTML='<div class="empty">Sube uno o más archivos MP3 o WAV para empezar.</div>';return}
+ if(!p){lib.innerHTML='<div class="empty">Crea una playlist y después añade canciones desde la biblioteca.</div>';return}
+ const inList=new Set(p.trackIds);
+ const heading=document.createElement('p');heading.className='hint muted';heading.textContent='En esta playlist: '+p.trackIds.length+' · Pulsa “＋” para añadir canciones. Usa ↑ y ↓ para cambiar el orden.';lib.append(heading);
+ for(const id of p.trackIds){const t=trackById(id);if(t)lib.append(makeTrack(t,true,p))}
+ const sub=document.createElement('h3');sub.textContent='Biblioteca de audio';sub.style.fontSize='15px';sub.style.margin='22px 0 8px';lib.append(sub);
+ for(const t of tracks)if(!inList.has(t.id))lib.append(makeTrack(t,false,p));
+}
+function makeTrack(t,inside,p){
+ const row=document.createElement('div');row.className='track';
+ const name=document.createElement('div');name.className='name';name.textContent=t.title;const small=document.createElement('small');small.textContent=t.file.name+' · '+fmt(t.file.size);name.append(small);row.append(name);
+ const actions=document.createElement('div');actions.className='actions row';
+ const play=document.createElement('button');play.textContent='▶';play.title='Escuchar';play.setAttribute('aria-label','Escuchar '+t.title);play.onclick=()=>{const url=URL.createObjectURL(t.file);$('player').src=url;$('nowPlaying').textContent='Reproduciendo/previa: '+t.title;$('player').play().catch(()=>{});if(window._previewUrl)URL.revokeObjectURL(window._previewUrl);window._previewUrl=url;activeTrack=t.id};actions.append(play);
+ if(inside){
+  const idx=p.trackIds.indexOf(t.id);
+  const up=document.createElement('button');up.textContent='↑';up.title='Mover arriba';up.disabled=idx===0;up.onclick=()=>{[p.trackIds[idx-1],p.trackIds[idx]]=[p.trackIds[idx],p.trackIds[idx-1]];render()};actions.append(up);
+  const down=document.createElement('button');down.textContent='↓';down.title='Mover abajo';down.disabled=idx===p.trackIds.length-1;down.onclick=()=>{[p.trackIds[idx+1],p.trackIds[idx]]=[p.trackIds[idx],p.trackIds[idx+1]];render()};actions.append(down);
+  const rm=document.createElement('button');rm.textContent='− Quitar';rm.onclick=()=>{p.trackIds=p.trackIds.filter(x=>x!==t.id);render()};actions.append(rm);
+ }else{const add=document.createElement('button');add.textContent='＋ Añadir';add.className='primary';add.onclick=()=>{if(!p.trackIds.includes(t.id))p.trackIds.push(t.id);render()};actions.append(add)}
+ row.append(actions);return row;
+}
+$('audioFiles').addEventListener('change',e=>{let added=0;for(const file of e.target.files){if(!/\.(mp3|wav)$/i.test(file.name)&&!file.type.startsWith('audio/'))continue;const dup=tracks.some(t=>t.file.name===file.name&&t.file.size===file.size&&t.file.lastModified===file.lastModified);if(dup)continue;tracks.push({id:'t'+nextId++,title:file.name.replace(/\.(mp3|wav)$/i,''),file});added++}e.target.value='';render();say(added?'Se añadieron '+added+' archivo(s).':'No se añadieron archivos nuevos.');});
+$('createPlaylist').onclick=()=>{const name=$('playlistName').value.trim()||'Mi playlist '+(playlists.length+1);const p={id:'p'+nextId++,name,trackIds:[]};playlists.push(p);selectedPlaylist=p.id;$('playlistName').value='';render();say('Playlist creada. Añade canciones desde la biblioteca.')};
+$('playlistSelect').onchange=e=>{selectedPlaylist=e.target.value;render()};
+$('renamePlaylist').onclick=()=>{const p=current();if(!p){say('Primero crea una playlist.');return}const name=prompt('Nuevo nombre de la playlist:',p.name);if(name&&name.trim()){p.name=name.trim().slice(0,80);render();say('Playlist renombrada.')}};
+$('deletePlaylist').onclick=()=>{const p=current();if(!p)return;if(!confirm('¿Eliminar la playlist “'+p.name+'”? Los archivos seguirán en la biblioteca.'))return;playlists=playlists.filter(x=>x.id!==p.id);selectedPlaylist=playlists[0]?.id||'';render();say('Playlist eliminada.')};
+function exportData(){return {format:'aerosim-playlist-v1',name:current()?.name||'Mis playlists',playlists:playlists.map(p=>({name:p.name,tracks:p.trackIds.map(id=>{const t=trackById(id);return t?{title:t.title,file:'audio/'+safeName(t.file.name)}:null}).filter(Boolean)}))}}
+$('exportJson').onclick=()=>{const data=exportData();downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),safeName((current()?.name||'playlists')+'.json'));say('JSON exportado. Recuerda que no contiene el audio.')}
+function downloadBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+$('exportZip').onclick=async()=>{if(!playlists.length){say('Crea al menos una playlist para exportar.');return}if(!window.JSZip){say('No se pudo cargar el módulo ZIP. Comprueba la conexión y recarga la página. Puedes exportar el JSON por separado.');return}
+ const btn=$('exportZip');btn.disabled=true;say('Preparando ZIP…');
+ try{const zip=new JSZip();const audio=zip.folder('audio');const used=new Set();for(const t of tracks){let name=safeName(t.file.name),base=name,idx=2;while(used.has(name.toLowerCase())){const dot=base.lastIndexOf('.');name=dot>0?base.slice(0,dot)+'-'+idx+base.slice(dot):base+'-'+idx;idx++}used.add(name.toLowerCase());t.exportName=name;audio.file(name,t.file)}
+ const data={format:'aerosim-playlist-v1',name:'AeroSim playlists',playlists:playlists.map(p=>({name:p.name,tracks:p.trackIds.map(id=>{const t=trackById(id);return t?{title:t.title,file:'audio/'+(t.exportName||safeName(t.file.name))}:null}).filter(Boolean)}))};zip.file('playlist.json',JSON.stringify(data,null,2));const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});downloadBlob(blob,safeName((current()?.name||'aerosim-playlists')+'.zip'));say('ZIP listo: incluye playlist.json y los audios.');}
+ catch(err){console.error(err);say('No se pudo crear el ZIP: '+(err.message||err))}finally{btn.disabled=false}
+};
+$('importJson').addEventListener('change',async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;try{const data=JSON.parse(await file.text());const incoming=Array.isArray(data)?data:(data.playlists||data.tracks&&[{name:data.name||'Playlist importada',tracks:data.tracks}]);if(!Array.isArray(incoming)||!incoming.length)throw Error('No encontré playlists en ese JSON.');let count=0;for(const item of incoming){const p={id:'p'+nextId++,name:String(item.name||'Playlist importada').slice(0,80),trackIds:[]};for(const x of (item.tracks||[])){const title=typeof x==='string'?x:(x.title||x.name||x.file||x.url);if(!title)continue;const existing=tracks.find(t=>t.title===title);if(existing)p.trackIds.push(existing.id);else{const t={id:'t'+nextId++,title:String(title),file:new File([],String(x.file||x.url||title))};tracks.push(t);p.trackIds.push(t.id);count++}}playlists.push(p);selectedPlaylist=p.id}render();say('JSON importado. '+count+' referencia(s) necesitan sus archivos de audio para poder reproducirse.')}catch(err){say('No se pudo importar el JSON: '+err.message)}});
+render();
+})();
+</script></body></html>
